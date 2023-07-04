@@ -26,31 +26,29 @@ classes = [
     'teddy bear', 'hair drier', 'toothbrush'
 ]
 
-cap = cv2.VideoCapture(0)
+image = cv2.imread('imagem.jpeg')
 
-while True:
-    ret, frame = cap.read()
+input_tensor = transform(image)
+input_batch = input_tensor.unsqueeze(0)
 
-    input_tensor = transform(frame)
-    input_batch = input_tensor.unsqueeze(0)
+with torch.no_grad():
+    prediction = model(input_batch)
 
-    with torch.no_grad():
-        prediction = model(input_batch)
+filtered_boxes = []
+for i in range(prediction[0]['boxes'].shape[0]):
+    if prediction[0]['scores'][i] > 0.8:
+        filtered_boxes.append(prediction[0]['boxes'][i])
+        class_index = int(prediction[0]['labels'][i])
+        class_label = classes[class_index]
+        score = float(prediction[0]['scores'][i])
 
-    filtered_boxes = []
-    for i in range(prediction[0]['boxes'].shape[0]):
-        if prediction[0]['scores'][i] > 0.5:
-            filtered_boxes.append(prediction[0]['boxes'][i])
+        x, y, w, h = filtered_boxes[-1]
 
-    for box in filtered_boxes:
-        box = box.tolist()
-        x, y, w, h = int(box[0]), int(box[1]), int(box[2] - box[0]), int(box[3] - box[1])
-        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        cv2.rectangle(image, (int(x), int(y)), (int(w), int(h)), (0, 255, 0), 2)
 
-    cv2.imshow('Object Tracking', frame)
+        label = f"{class_label}: {score:.2f}"
+        cv2.putText(image, label, (int(x), int(y) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
-    if cv2.waitKey(1) == ord('q'):
-        break
-
-cap.release()
+cv2.imshow('Object Tracking', image)
+cv2.waitKey(0)
 cv2.destroyAllWindows()
